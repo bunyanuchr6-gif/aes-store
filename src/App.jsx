@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import "./App.css";
 
-const products = [
+const fallbackProducts = [
   {
     id: 1,
     name: "Cushion Foundation",
@@ -179,7 +179,7 @@ const products = [
     thaiName: "มาสก์บำรุงเส้นผม",
     category: "ดูแลเส้นผม",
     price: 359,
-    image: "/images/18mask.png",
+    image: "/images/18hmask.png",
     description:
       "มาสก์สำหรับบำรุงเส้นผม ช่วยให้เส้นผมรู้สึกนุ่มและได้รับการบำรุง",
   },
@@ -215,32 +215,166 @@ function App() {
 
   const [user, setUser] = useState(null);
 
+  const [userRole, setUserRole] = useState("customer");
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  // สินค้าที่โหลดจาก Supabase
+  const [products, setProducts] = useState(fallbackProducts);
+
+  // ฟอร์มเพิ่ม / แก้ไขสินค้าในหน้า Admin
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productImageFile, setProductImageFile] = useState(null);
+  const [productForm, setProductForm] = useState({
+    name: "",
+    thaiName: "",
+    category: "เครื่องสำอาง",
+    price: "",
+    image: "",
+    description: "",
+  });
+
+  // ระบบคำสั่งซื้อ
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderSaving, setOrderSaving] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    fullName: "",
+    phone: "",
+    address: "",
+    paymentMethod: "",
+  });
+
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
   });
 
+  const loadProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("โหลดสินค้าไม่สำเร็จ:", error.message);
+      return;
+    }
+
+    const formattedProducts = (data || []).map((product) => ({
+      id: product.id,
+      name: product.name,
+      thaiName: product.thai_name,
+      category: product.category,
+      price: Number(product.price),
+      image: product.image,
+      description: product.description,
+    }));
+
+    setProducts(formattedProducts);
+  };
+
+  const loadOrders = async () => {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        user_id,
+        customer_name,
+        phone,
+        address,
+        payment_method,
+        total,
+        status,
+        created_at,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          price,
+          quantity,
+          subtotal
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("โหลดคำสั่งซื้อไม่สำเร็จ:", error.message);
+      return;
+    }
+
+    setOrders(data || []);
+  };
+
+  const loadUserRole = async (userId) => {
+    if (!userId) {
+      setUserRole("customer");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("ไม่สามารถโหลดสิทธิ์ผู้ใช้ได้:", error.message);
+      setUserRole("customer");
+      return;
+    }
+
+    setUserRole(data?.role || "customer");
+  };
+
   useEffect(() => {
-  const loadUser = async () => {
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        await loadUserRole(currentUser.id);
+      } else {
+        setUserRole("customer");
+      }
+    };
+
+    loadUser();
+
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-    setUser(session?.user ?? null);
-  };
+      if (currentUser) {
+        setTimeout(() => {
+          loadUserRole(currentUser.id);
+        }, 0);
+      } else {
+        setUserRole("customer");
+        setShowAdmin(false);
+      }
+    });
 
-  loadUser();
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user ?? null);
-  });
-
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
+  useEffect(() => {
+    if (showAdmin && userRole === "admin") {
+      loadOrders();
+    }
+  }, [showAdmin, userRole]);
 
   const [registerData, setRegisterData] = useState({
     fullName: "",
@@ -265,7 +399,7 @@ function App() {
 
       return categoryMatch && searchMatch;
     });
-  }, [selectedCategory, search]);
+  }, [products, selectedCategory, search]);
 
   const cartCount = cart.reduce(
     (sum, item) => sum + item.quantity,
@@ -391,6 +525,7 @@ function App() {
     alert("สมัครสมาชิกสำเร็จ");
 
     setUser(data.user);
+    await loadUserRole(data.user?.id);
 
     setRegisterData({
       fullName: "",
@@ -420,6 +555,7 @@ function App() {
     }
 
     setUser(data.user);
+    await loadUserRole(data.user.id);
 
     setLoginData({
       email: "",
@@ -435,35 +571,811 @@ function App() {
     await supabase.auth.signOut();
 
     setUser(null);
+    setUserRole("customer");
+    setShowAdmin(false);
 
     alert("ออกจากระบบเรียบร้อย");
   };
 
-  const startCheckout = () => {
-  if (cart.length === 0) {
-    return;
-  }
+  const openAddProduct = () => {
+    setEditingProduct(null);
+    setProductImageFile(null);
+    setProductForm({
+      name: "",
+      thaiName: "",
+      category: "เครื่องสำอาง",
+      price: "",
+      image: "",
+      description: "",
+    });
+    setShowProductForm(true);
+  };
 
-  if (!user) {
-    alert("กรุณาสมัครสมาชิกหรือเข้าสู่ระบบก่อนสั่งซื้อสินค้า");
+  const openEditProduct = (product) => {
+    setEditingProduct(product);
+    setProductImageFile(null);
+    setProductForm({
+      name: product.name || "",
+      thaiName: product.thaiName || "",
+      category: product.category || "เครื่องสำอาง",
+      price: product.price ?? "",
+      image: product.image || "",
+      description: product.description || "",
+    });
+    setShowProductForm(true);
+  };
 
-    setShowCart(false);
-    setShowLogin(true);
-
-    return;
-  }
-
-  setShowCart(false);
-  setShowCheckout(true);
-};
-
-  const finishOrder = (event) => {
+  const saveProduct = async (event) => {
     event.preventDefault();
 
+    if (!productForm.name.trim() || !productForm.thaiName.trim()) {
+      alert("กรุณากรอกชื่อสินค้า");
+      return;
+    }
+
+    if (!productForm.price || Number(productForm.price) <= 0) {
+      alert("กรุณากรอกราคาให้ถูกต้อง");
+      return;
+    }
+
+    let imageUrl = productForm.image.trim();
+
+    if (productImageFile) {
+      const extension = productImageFile.name.split(".").pop();
+      const safeName = productForm.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "product";
+      const filePath = `${Date.now()}-${safeName}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, productImageFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        alert("อัปโหลดรูปไม่สำเร็จ: " + uploadError.message);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    if (!imageUrl) {
+      alert("กรุณาเลือกรูปสินค้า");
+      return;
+    }
+
+    const productData = {
+      name: productForm.name.trim(),
+      thai_name: productForm.thaiName.trim(),
+      category: productForm.category,
+      price: Number(productForm.price),
+      image: imageUrl,
+      description: productForm.description.trim(),
+    };
+
+    if (editingProduct) {
+      const { error } = await supabase
+        .from("products")
+        .update(productData)
+        .eq("id", editingProduct.id);
+
+      if (error) {
+        alert("แก้ไขสินค้าไม่สำเร็จ: " + error.message);
+        return;
+      }
+
+      alert("แก้ไขสินค้าเรียบร้อย");
+    } else {
+      const { error } = await supabase
+        .from("products")
+        .insert(productData);
+
+      if (error) {
+        alert("เพิ่มสินค้าไม่สำเร็จ: " + error.message);
+        return;
+      }
+
+      alert("เพิ่มสินค้าเรียบร้อย");
+    }
+
+    await loadProducts();
+    setShowProductForm(false);
+    setEditingProduct(null);
+    setProductImageFile(null);
+  };
+
+  const deleteProduct = async (product) => {
+    const confirmDelete = window.confirm(
+      `ต้องการลบสินค้า "${product.thaiName}" หรือไม่`
+    );
+
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", product.id);
+
+    if (error) {
+      alert("ลบสินค้าไม่สำเร็จ: " + error.message);
+      return;
+    }
+
+    await loadProducts();
+    alert("ลบสินค้าเรียบร้อย");
+  };
+
+  const startCheckout = () => {
+    if (cart.length === 0) return;
+
+    if (!user) {
+      alert("กรุณาสมัครสมาชิกหรือเข้าสู่ระบบก่อนสั่งซื้อสินค้า");
+      setShowCart(false);
+      setShowLogin(true);
+      return;
+    }
+
+    setCheckoutData({
+      fullName: user.user_metadata?.full_name || "",
+      phone: user.user_metadata?.phone || "",
+      address: "",
+      paymentMethod: "",
+    });
+
+    setShowCart(false);
+    setShowCheckout(true);
+  };
+
+  const finishOrder = async (event) => {
+    event.preventDefault();
+
+    if (!user || cart.length === 0) return;
+
+    setOrderSaving(true);
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        user_id: user.id,
+        customer_name: checkoutData.fullName.trim(),
+        phone: checkoutData.phone.trim(),
+        address: checkoutData.address.trim(),
+        payment_method: checkoutData.paymentMethod,
+        total: cartTotal,
+        status: "รอดำเนินการ",
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      setOrderSaving(false);
+      alert("บันทึกคำสั่งซื้อไม่สำเร็จ: " + orderError.message);
+      return;
+    }
+
+    const orderItems = cart.map((item) => ({
+      order_id: order.id,
+      product_id: item.id,
+      product_name: item.thaiName,
+      price: item.price,
+      quantity: item.quantity,
+      subtotal: item.price * item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      await supabase.from("orders").delete().eq("id", order.id);
+      setOrderSaving(false);
+      alert("บันทึกรายการสินค้าไม่สำเร็จ: " + itemsError.message);
+      return;
+    }
+
+    setOrderSaving(false);
     setShowCheckout(false);
     setOrderSuccess(true);
     setCart([]);
+    setCheckoutData({
+      fullName: "",
+      phone: "",
+      address: "",
+      paymentMethod: "",
+    });
   };
+
+  const updateOrderStatus = async (orderId, status) => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ status })
+      .eq("id", orderId);
+
+    if (error) {
+      alert("เปลี่ยนสถานะไม่สำเร็จ: " + error.message);
+      return;
+    }
+
+    await loadOrders();
+  };
+
+  if (showAdmin && userRole === "admin") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#0b0b0b",
+          color: "#fff",
+          fontFamily: '"Mali", sans-serif',
+          padding: "32px 6% 60px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "16px",
+            flexWrap: "wrap",
+            paddingBottom: "24px",
+            borderBottom: "1px solid #2c2c2c",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                color: "#dfbd6d",
+                letterSpacing: "4px",
+                fontSize: "11px",
+                margin: "0 0 6px",
+              }}
+            >
+              AE’S STORE
+            </p>
+            <h1 style={{ margin: 0, fontSize: "32px" }}>Admin Dashboard</h1>
+            <p style={{ color: "#888", marginBottom: 0 }}>จัดการข้อมูลร้านค้า</p>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <button className="top-button" onClick={() => setShowAdmin(false)}>
+              ← กลับหน้าร้าน
+            </button>
+            <button className="top-button" onClick={handleLogout}>
+              ออกจากระบบ
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: "16px",
+            marginTop: "28px",
+          }}
+        >
+          {[
+            ["สินค้า", `${products.length} รายการ`, "🛍️"],
+            ["คำสั่งซื้อ", `${orders.length} รายการ`, "📦"],
+            ["สถานะบัญชี", "ผู้ดูแลระบบ", "👑"],
+            ["บัญชี", user?.email || "-", "👤"],
+          ].map(([label, value, icon]) => (
+            <div
+              key={label}
+              style={{
+                border: "1px solid #333",
+                background: "#121212",
+                borderRadius: "16px",
+                padding: "22px",
+              }}
+            >
+              <div style={{ fontSize: "28px" }}>{icon}</div>
+              <p style={{ color: "#888", margin: "12px 0 4px", fontSize: "13px" }}>
+                {label}
+              </p>
+              <strong style={{ color: "#dfbd6d", fontSize: "20px" }}>{value}</strong>
+            </div>
+          ))}
+        </div>
+
+        <section
+          style={{
+            marginTop: "28px",
+            border: "1px solid #2d2d2d",
+            background: "#111",
+            borderRadius: "18px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "20px 22px",
+              borderBottom: "1px solid #2d2d2d",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p style={{ color: "#dfbd6d", margin: "0 0 5px", fontSize: "11px" }}>
+                PRODUCT MANAGEMENT
+              </p>
+              <h2 style={{ margin: 0 }}>รายการสินค้า</h2>
+            </div>
+            <button
+              className="gold-button"
+              type="button"
+              onClick={openAddProduct}
+            >
+              + เพิ่มสินค้า
+            </button>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "720px" }}>
+              <thead>
+                <tr style={{ color: "#aaa", textAlign: "left" }}>
+                  <th style={{ padding: "14px 18px" }}>รูป</th>
+                  <th style={{ padding: "14px 18px" }}>สินค้า</th>
+                  <th style={{ padding: "14px 18px" }}>หมวดหมู่</th>
+                  <th style={{ padding: "14px 18px" }}>ราคา</th>
+                  <th style={{ padding: "14px 18px" }}>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id} style={{ borderTop: "1px solid #252525" }}>
+                    <td style={{ padding: "12px 18px" }}>
+                      <img
+                        src={product.image}
+                        alt={product.thaiName}
+                        style={{
+                          width: "58px",
+                          height: "58px",
+                          objectFit: "cover",
+                          borderRadius: "10px",
+                        }}
+                      />
+                    </td>
+                    <td style={{ padding: "12px 18px" }}>
+                      <strong>{product.thaiName}</strong>
+                      <div style={{ color: "#777", fontSize: "12px", marginTop: "3px" }}>
+                        {product.name}
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 18px", color: "#bbb" }}>
+                      {product.category}
+                    </td>
+                    <td style={{ padding: "12px 18px", color: "#dfbd6d" }}>
+                      ฿{product.price.toLocaleString()}
+                    </td>
+                    <td style={{ padding: "12px 18px" }}>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <button
+                          className="detail-button"
+                          type="button"
+                          style={{ width: "auto", margin: 0, padding: "8px 12px" }}
+                          onClick={() => openEditProduct(product)}
+                        >
+                          ✏️ แก้ไข
+                        </button>
+
+                        <button
+                          type="button"
+                          style={{
+                            border: "1px solid #743b3b",
+                            background: "#251414",
+                            color: "#e59a9a",
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => deleteProduct(product)}
+                        >
+                          🗑️ ลบ
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          style={{
+            marginTop: "28px",
+            border: "1px solid #2d2d2d",
+            background: "#111",
+            borderRadius: "18px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "20px 22px",
+              borderBottom: "1px solid #2d2d2d",
+            }}
+          >
+            <p style={{ color: "#dfbd6d", margin: "0 0 5px", fontSize: "11px" }}>
+              ORDER MANAGEMENT
+            </p>
+            <h2 style={{ margin: 0 }}>รายการคำสั่งซื้อ</h2>
+          </div>
+
+          {orders.length === 0 ? (
+            <div style={{ padding: "24px", color: "#888" }}>
+              ยังไม่มีคำสั่งซื้อ
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "980px" }}>
+                <thead>
+                  <tr style={{ color: "#aaa", textAlign: "left" }}>
+                    <th style={{ padding: "14px 18px" }}>เลขออเดอร์</th>
+                    <th style={{ padding: "14px 18px" }}>ลูกค้า</th>
+                    <th style={{ padding: "14px 18px" }}>สินค้า</th>
+                    <th style={{ padding: "14px 18px" }}>ยอดรวม</th>
+                    <th style={{ padding: "14px 18px" }}>การชำระเงิน</th>
+                    <th style={{ padding: "14px 18px" }}>สถานะ</th>
+                    <th style={{ padding: "14px 18px" }}>รายละเอียด</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} style={{ borderTop: "1px solid #252525", verticalAlign: "top" }}>
+                      <td style={{ padding: "14px 18px", color: "#dfbd6d" }}>
+                        #{order.id}
+                        <div style={{ color: "#777", fontSize: "11px", marginTop: "5px" }}>
+                          {new Date(order.created_at).toLocaleString("th-TH")}
+                        </div>
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <strong>{order.customer_name}</strong>
+                        <div style={{ color: "#aaa", fontSize: "12px", marginTop: "4px" }}>
+                          {order.phone}
+                        </div>
+                        <div style={{ color: "#777", fontSize: "12px", marginTop: "4px", maxWidth: "220px" }}>
+                          {order.address}
+                        </div>
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        {(order.order_items || []).map((item) => (
+                          <div key={item.id} style={{ marginBottom: "6px", color: "#ccc", fontSize: "13px" }}>
+                            {item.product_name} × {item.quantity}
+                          </div>
+                        ))}
+                      </td>
+                      <td style={{ padding: "14px 18px", color: "#dfbd6d", fontWeight: 700 }}>
+                        ฿{Number(order.total).toLocaleString()}
+                      </td>
+                      <td style={{ padding: "14px 18px", color: "#bbb" }}>
+                        {order.payment_method === "transfer"
+                          ? "โอนเงินผ่านบัญชีธนาคาร"
+                          : "ชำระเงินปลายทาง"}
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <select
+                          value={order.status}
+                          onChange={(event) => updateOrderStatus(order.id, event.target.value)}
+                          style={{
+                            padding: "9px 10px",
+                            borderRadius: "8px",
+                            border: "1px solid #444",
+                            background: "#171717",
+                            color: "#fff",
+                          }}
+                        >
+                          <option value="รอดำเนินการ">รอดำเนินการ</option>
+                          <option value="กำลังจัดส่ง">กำลังจัดส่ง</option>
+                          <option value="สำเร็จ">สำเร็จ</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <button
+                          type="button"
+                          className="detail-button"
+                          style={{ width: "auto", margin: 0, padding: "8px 12px" }}
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          ดูรายละเอียด
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {selectedOrder && (
+          <>
+            <div
+              className="modal-overlay"
+              onClick={() => setSelectedOrder(null)}
+            />
+
+            <div className="checkout-modal" style={{ maxWidth: "760px" }}>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+              >
+                ✕
+              </button>
+
+              <div className="checkout-heading">
+                <p>ORDER DETAILS</p>
+                <h2>รายละเอียดคำสั่งซื้อ #{selectedOrder.id}</h2>
+              </div>
+
+              <div style={{ display: "grid", gap: "14px" }}>
+                <div
+                  style={{
+                    border: "1px solid #333",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    background: "#151515",
+                  }}
+                >
+                  <h3 style={{ margin: "0 0 12px", color: "#dfbd6d" }}>ข้อมูลลูกค้า</h3>
+                  <p style={{ margin: "5px 0" }}><strong>ชื่อ:</strong> {selectedOrder.customer_name}</p>
+                  <p style={{ margin: "5px 0" }}><strong>เบอร์โทร:</strong> {selectedOrder.phone}</p>
+                  <p style={{ margin: "5px 0" }}><strong>ที่อยู่:</strong> {selectedOrder.address}</p>
+                  <p style={{ margin: "5px 0" }}>
+                    <strong>วิธีชำระเงิน:</strong>{" "}
+                    {selectedOrder.payment_method === "transfer"
+                      ? "โอนเงินผ่านบัญชีธนาคาร"
+                      : "ชำระเงินปลายทาง"}
+                  </p>
+                  <p style={{ margin: "5px 0" }}>
+                    <strong>วันที่สั่งซื้อ:</strong>{" "}
+                    {new Date(selectedOrder.created_at).toLocaleString("th-TH")}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    border: "1px solid #333",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    background: "#151515",
+                  }}
+                >
+                  <h3 style={{ margin: "0 0 12px", color: "#dfbd6d" }}>รายการสินค้า</h3>
+
+                  {(selectedOrder.order_items || []).map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr auto",
+                        gap: "10px",
+                        padding: "10px 0",
+                        borderBottom: "1px solid #2b2b2b",
+                      }}
+                    >
+                      <div>
+                        <strong>{item.product_name}</strong>
+                        <div style={{ color: "#888", fontSize: "12px", marginTop: "4px" }}>
+                          ฿{Number(item.price).toLocaleString()} × {item.quantity} ชิ้น
+                        </div>
+                      </div>
+                      <strong style={{ color: "#dfbd6d" }}>
+                        ฿{Number(item.subtotal).toLocaleString()}
+                      </strong>
+                    </div>
+                  ))}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "16px",
+                      fontSize: "18px",
+                    }}
+                  >
+                    <strong>ยอดรวมทั้งหมด</strong>
+                    <strong style={{ color: "#dfbd6d", fontSize: "24px" }}>
+                      ฿{Number(selectedOrder.total).toLocaleString()}
+                    </strong>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <span style={{ color: "#999", marginRight: "8px" }}>สถานะ:</span>
+                    <strong style={{ color: "#dfbd6d" }}>{selectedOrder.status}</strong>
+                  </div>
+
+                  <button
+                    className="gold-button"
+                    type="button"
+                    onClick={() => setSelectedOrder(null)}
+                  >
+                    ปิดรายละเอียด
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {showProductForm && (
+          <>
+            <div
+              className="modal-overlay"
+              onClick={() => setShowProductForm(false)}
+            />
+
+            <div className="checkout-modal">
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setShowProductForm(false)}
+              >
+                ✕
+              </button>
+
+              <div className="checkout-heading">
+                <p>PRODUCT MANAGEMENT</p>
+                <h2>{editingProduct ? "แก้ไขสินค้า" : "เพิ่มสินค้า"}</h2>
+              </div>
+
+              <form className="checkout-form" onSubmit={saveProduct}>
+                <label>ชื่อสินค้าภาษาไทย</label>
+                <input
+                  type="text"
+                  value={productForm.thaiName}
+                  onChange={(event) =>
+                    setProductForm({
+                      ...productForm,
+                      thaiName: event.target.value,
+                    })
+                  }
+                  required
+                />
+
+                <label>ชื่อสินค้าภาษาอังกฤษ</label>
+                <input
+                  type="text"
+                  value={productForm.name}
+                  onChange={(event) =>
+                    setProductForm({
+                      ...productForm,
+                      name: event.target.value,
+                    })
+                  }
+                  required
+                />
+
+                <label>หมวดหมู่</label>
+                <select
+                  value={productForm.category}
+                  onChange={(event) =>
+                    setProductForm({
+                      ...productForm,
+                      category: event.target.value,
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid #444",
+                    background: "#171717",
+                    color: "#fff",
+                  }}
+                  required
+                >
+                  <option value="เครื่องสำอาง">เครื่องสำอาง</option>
+                  <option value="บำรุงผิวหน้า">บำรุงผิวหน้า</option>
+                  <option value="บำรุงผิวกาย">บำรุงผิวกาย</option>
+                  <option value="ดูแลเส้นผม">ดูแลเส้นผม</option>
+                </select>
+
+                <label>ราคา</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={productForm.price}
+                  onChange={(event) =>
+                    setProductForm({
+                      ...productForm,
+                      price: event.target.value,
+                    })
+                  }
+                  required
+                />
+
+                <label>รูปสินค้า</label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setProductImageFile(event.target.files?.[0] || null)
+                  }
+                />
+
+                {productImageFile && (
+                  <p style={{ color: "#c7a95b", fontSize: "13px", marginTop: "6px" }}>
+                    รูปที่เลือก: {productImageFile.name}
+                  </p>
+                )}
+
+                {editingProduct && productForm.image && !productImageFile && (
+                  <div style={{ marginTop: "8px" }}>
+                    <p style={{ color: "#888", fontSize: "12px", marginBottom: "8px" }}>
+                      รูปปัจจุบัน (ถ้าไม่เลือกรูปใหม่ จะใช้รูปเดิม)
+                    </p>
+                    <img
+                      src={productForm.image}
+                      alt={productForm.thaiName || "รูปสินค้า"}
+                      style={{
+                        width: "90px",
+                        height: "90px",
+                        objectFit: "cover",
+                        borderRadius: "10px",
+                        border: "1px solid #333",
+                      }}
+                    />
+                  </div>
+                )}
+
+                <label>รายละเอียดสินค้า</label>
+                <textarea
+                  rows="4"
+                  value={productForm.description}
+                  onChange={(event) =>
+                    setProductForm({
+                      ...productForm,
+                      description: event.target.value,
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid #444",
+                    background: "#171717",
+                    color: "#fff",
+                    resize: "vertical",
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                <button className="gold-button full" type="submit">
+                  {editingProduct ? "บันทึกการแก้ไข" : "เพิ่มสินค้า"}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -482,6 +1394,15 @@ function App() {
                   {user.user_metadata?.full_name ||
                     "สมาชิก"}
                 </button>
+
+                {userRole === "admin" && (
+                  <button
+                    className="top-button"
+                    onClick={() => setShowAdmin(true)}
+                  >
+                    ⚙️ จัดการร้าน
+                  </button>
+                )}
 
                 <button
                   className="top-button"
@@ -1221,6 +2142,10 @@ function App() {
 
               <input
                 type="text"
+                value={checkoutData.fullName}
+                onChange={(event) =>
+                  setCheckoutData({ ...checkoutData, fullName: event.target.value })
+                }
                 required
               />
 
@@ -1230,6 +2155,10 @@ function App() {
 
               <input
                 type="tel"
+                value={checkoutData.phone}
+                onChange={(event) =>
+                  setCheckoutData({ ...checkoutData, phone: event.target.value })
+                }
                 required
               />
 
@@ -1239,6 +2168,10 @@ function App() {
 
               <textarea
                 rows="4"
+                value={checkoutData.address}
+                onChange={(event) =>
+                  setCheckoutData({ ...checkoutData, address: event.target.value })
+                }
                 required
               />
 
@@ -1246,7 +2179,13 @@ function App() {
                 วิธีการชำระเงิน
               </label>
 
-              <select required>
+              <select
+                value={checkoutData.paymentMethod}
+                onChange={(event) =>
+                  setCheckoutData({ ...checkoutData, paymentMethod: event.target.value })
+                }
+                required
+              >
                 <option value="">
                   เลือกวิธีการชำระเงิน
                 </option>
@@ -1274,8 +2213,9 @@ function App() {
               <button
                 className="gold-button full"
                 type="submit"
+                disabled={orderSaving}
               >
-                ยืนยันการสั่งซื้อ
+                {orderSaving ? "กำลังบันทึกคำสั่งซื้อ..." : "ยืนยันการสั่งซื้อ"}
               </button>
             </form>
           </div>
