@@ -1,595 +1,611 @@
-import { useRef, useState } from 'react'
-import './App.css'
+import { useMemo, useState } from "react";
+import { supabase } from "./supabase";
+import "./App.css";
+
+const products = [
+  {
+    id: 1,
+    name: "Cushion Foundation",
+    thaiName: "คุชชั่นรองพื้น",
+    category: "เครื่องสำอาง",
+    price: 359,
+    image: "/images/1cushion.png",
+    description:
+      "คุชชั่นเนื้อบางเบา ช่วยให้ผิวดูเรียบเนียนเป็นธรรมชาติ เหมาะสำหรับการแต่งหน้าในชีวิตประจำวัน",
+  },
+  {
+    id: 2,
+    name: "Lip Tint",
+    thaiName: "ลิปทินต์",
+    category: "เครื่องสำอาง",
+    price: 189,
+    image: "/images/2liptint.png",
+    description:
+      "ลิปทินต์สีสวย เนื้อบางเบา เกลี่ยง่าย เหมาะสำหรับเพิ่มสีสันให้ริมฝีปาก",
+  },
+  {
+    id: 3,
+    name: "Face Powder",
+    thaiName: "แป้งฝุ่น",
+    category: "เครื่องสำอาง",
+    price: 259,
+    image: "/images/3powder.png",
+    description:
+      "แป้งฝุ่นเนื้อละเอียด ช่วยให้ผิวดูเรียบเนียนและช่วยลดความมันระหว่างวัน",
+  },
+  {
+    id: 4,
+    name: "Facial Serum",
+    thaiName: "เซรั่มบำรุงผิวหน้า",
+    category: "บำรุงผิวหน้า",
+    price: 399,
+    image: "/images/4serum.png",
+    description:
+      "เซรั่มบำรุงผิวหน้าเนื้อบางเบา ช่วยเพิ่มความชุ่มชื้นให้กับผิว",
+  },
+  {
+    id: 5,
+    name: "Face Cream",
+    thaiName: "ครีมบำรุงผิวหน้า",
+    category: "บำรุงผิวหน้า",
+    price: 329,
+    image: "/images/5cream.png",
+    description:
+      "ครีมบำรุงผิวหน้าช่วยเพิ่มความชุ่มชื้นและทำให้ผิวรู้สึกนุ่มขึ้น",
+  },
+  {
+    id: 6,
+    name: "Facial Sunscreen",
+    thaiName: "ครีมกันแดดผิวหน้า",
+    category: "บำรุงผิวหน้า",
+    price: 289,
+    image: "/images/6fsun.png",
+    description:
+      "ผลิตภัณฑ์กันแดดสำหรับผิวหน้า เนื้อบางเบา เหมาะสำหรับใช้ในตอนเช้า",
+  },
+  {
+    id: 7,
+    name: "Body Lotion",
+    thaiName: "โลชั่นบำรุงผิวกาย",
+    category: "บำรุงผิวกาย",
+    price: 249,
+    image: "/images/7lotion.png",
+    description:
+      "โลชั่นบำรุงผิวกาย ช่วยเพิ่มความชุ่มชื้นและดูแลผิวเป็นประจำทุกวัน",
+  },
+  {
+    id: 8,
+    name: "Body Soap",
+    thaiName: "สบู่ทำความสะอาดผิว",
+    category: "บำรุงผิวกาย",
+    price: 129,
+    image: "/images/8soap.png",
+    description:
+      "สบู่สำหรับทำความสะอาดผิวกาย ช่วยให้รู้สึกสะอาดและสดชื่น",
+  },
+  {
+    id: 9,
+    name: "Body Scrub",
+    thaiName: "สครับผิวกาย",
+    category: "บำรุงผิวกาย",
+    price: 219,
+    image: "/images/9bscrub.png",
+    description:
+      "ผลิตภัณฑ์สครับผิวกาย ช่วยทำความสะอาดและดูแลผิวอย่างอ่อนโยน",
+  },
+  {
+    id: 10,
+    name: "Hand Cream",
+    thaiName: "ครีมบำรุงมือ",
+    category: "บำรุงผิวกาย",
+    price: 159,
+    image: "/images/10handcream.png",
+    description:
+      "ครีมบำรุงมือ ช่วยเพิ่มความชุ่มชื้นให้ผิวบริเวณมือ",
+  },
+  {
+    id: 11,
+    name: "Body Sunscreen",
+    thaiName: "ครีมกันแดดผิวกาย",
+    category: "บำรุงผิวกาย",
+    price: 299,
+    image: "/images/11bsun.png",
+    description:
+      "ผลิตภัณฑ์กันแดดสำหรับผิวกาย เหมาะสำหรับใช้ก่อนออกจากบ้าน",
+  },
+  {
+    id: 12,
+    name: "Body Oil",
+    thaiName: "ออยล์บำรุงผิวกาย",
+    category: "บำรุงผิวกาย",
+    price: 349,
+    image: "/images/12bodyoil.png",
+    description:
+      "ออยล์สำหรับบำรุงผิวกาย ช่วยให้ผิวรู้สึกนุ่มและชุ่มชื้น",
+  },
+  {
+    id: 13,
+    name: "Hair Shampoo",
+    thaiName: "แชมพูสระผม",
+    category: "ดูแลเส้นผม",
+    price: 269,
+    image: "/images/13shampoo.png",
+    description:
+      "แชมพูสำหรับทำความสะอาดเส้นผมและหนังศีรษะ",
+  },
+  {
+    id: 14,
+    name: "Hair Conditioner",
+    thaiName: "ครีมนวดผม",
+    category: "ดูแลเส้นผม",
+    price: 269,
+    image: "/images/14con.png",
+    description:
+      "ครีมนวดสำหรับบำรุงเส้นผมหลังสระ ช่วยให้ผมนุ่มและจัดทรงง่าย",
+  },
+  {
+    id: 15,
+    name: "Hair Treatment",
+    thaiName: "ทรีตเมนต์บำรุงผม",
+    category: "ดูแลเส้นผม",
+    price: 329,
+    image: "/images/15treatment.png",
+    description:
+      "ทรีตเมนต์สำหรับบำรุงเส้นผมและเพิ่มความชุ่มชื้น",
+  },
+  {
+    id: 16,
+    name: "Hair Serum",
+    thaiName: "เซรั่มบำรุงเส้นผม",
+    category: "ดูแลเส้นผม",
+    price: 299,
+    image: "/images/16hserum.png",
+    description:
+      "เซรั่มบำรุงเส้นผม เหมาะสำหรับดูแลปลายผมและลดความแห้ง",
+  },
+  {
+    id: 17,
+    name: "Hair Spray",
+    thaiName: "สเปรย์บำรุงเส้นผม",
+    category: "ดูแลเส้นผม",
+    price: 249,
+    image: "/images/17hspray.png",
+    description:
+      "สเปรย์สำหรับดูแลเส้นผม ใช้งานง่ายและเหมาะสำหรับใช้ระหว่างวัน",
+  },
+  {
+    id: 18,
+    name: "Hair Mask",
+    thaiName: "มาสก์บำรุงเส้นผม",
+    category: "ดูแลเส้นผม",
+    price: 359,
+    image: "/images/18mask.png",
+    description:
+      "มาสก์สำหรับบำรุงเส้นผม ช่วยให้เส้นผมรู้สึกนุ่มและได้รับการบำรุง",
+  },
+];
+
+const categories = [
+  "สินค้าทั้งหมด",
+  "เครื่องสำอาง",
+  "บำรุงผิวหน้า",
+  "บำรุงผิวกาย",
+  "ดูแลเส้นผม",
+];
 
 function App() {
-  const productsSectionRef = useRef(null)
+  const [selectedCategory, setSelectedCategory] =
+    useState("สินค้าทั้งหมด");
 
-  const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด')
-  const [searchText, setSearchText] = useState('')
+  const [search, setSearch] = useState("");
 
-  const [cart, setCart] = useState([])
-  const [cartOpen, setCartOpen] = useState(false)
+  const [cart, setCart] = useState([]);
 
-  const [loginOpen, setLoginOpen] = useState(false)
-  const [registerOpen, setRegisterOpen] = useState(false)
+  const [showCart, setShowCart] = useState(false);
 
-  const [loginEmail, setLoginEmail] = useState('')
-  const [loginPassword, setLoginPassword] = useState('')
+  const [showLogin, setShowLogin] = useState(false);
 
-  const [registerName, setRegisterName] = useState('')
-  const [registerEmail, setRegisterEmail] = useState('')
-  const [registerPassword, setRegisterPassword] = useState('')
-  const [registerConfirmPassword, setRegisterConfirmPassword] =
-    useState('')
+  const [showRegister, setShowRegister] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState(null)
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [showCheckout, setShowCheckout] = useState(false);
 
-  const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const [orderSuccess, setOrderSuccess] = useState(false)
-  const [lastOrder, setLastOrder] = useState(null)
+  const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const [shippingName, setShippingName] = useState('')
-  const [shippingPhone, setShippingPhone] = useState('')
-  const [shippingAddress, setShippingAddress] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('โอนผ่านธนาคาร')
+  const [user, setUser] = useState(null);
 
-  const products = [
-    {
-      id: 1,
-      name: 'คูชั่นผิวแมทท์',
-      description: 'คูชั่นเนื้อบางเบา ช่วยปกปิดและควบคุมความมัน',
-      details:
-        'คูชั่นสำหรับแต่งหน้าที่ให้ผิวดูเรียบเนียน เนื้อสัมผัสบางเบา เกลี่ยง่าย ช่วยปกปิดรอยต่าง ๆ และควบคุมความมันระหว่างวัน เหมาะสำหรับการแต่งหน้าในชีวิตประจำวัน',
-      price: 490,
-      icon: '🧴',
-      tag: 'ขายดี',
-      category: 'ใบหน้า',
-    },
-    {
-      id: 2,
-      name: 'ลิปทินท์',
-      description: 'ลิปทินท์สีสวย เนื้อบางเบา สีติดทนนาน',
-      details:
-        'ลิปทินท์เนื้อบางเบา ให้สีสวยเป็นธรรมชาติ สามารถทาได้ทั้งแบบบาง ๆ หรือเพิ่มระดับสีให้ชัดขึ้น เหมาะสำหรับการแต่งหน้าหลายสไตล์',
-      price: 299,
-      icon: '💄',
-      tag: 'มาใหม่',
-      category: 'ใบหน้า',
-    },
-    {
-      id: 3,
-      name: 'แป้งคุมมัน',
-      description: 'ช่วยควบคุมความมันและทำให้ผิวดูเรียบเนียน',
-      details:
-        'แป้งเนื้อละเอียดสำหรับควบคุมความมันบนใบหน้า ช่วยให้เมคอัพดูเรียบเนียนและช่วยลดความมันวาวระหว่างวัน',
-      price: 350,
-      icon: '🌸',
-      tag: 'ขายดี',
-      category: 'ใบหน้า',
-    },
-    {
-      id: 4,
-      name: 'เซรั่มบำรุงผิวหน้า',
-      description: 'เซรั่มเนื้อบางเบา ช่วยเพิ่มความชุ่มชื้นให้ผิว',
-      details:
-        'เซรั่มบำรุงผิวหน้าที่มีเนื้อสัมผัสบางเบา ซึมง่าย ช่วยเพิ่มความชุ่มชื้นและดูแลผิวให้ดูสดใส เหมาะสำหรับใช้เป็นประจำ',
-      price: 590,
-      icon: '💧',
-      tag: 'แนะนำ',
-      category: 'ใบหน้า',
-    },
-    {
-      id: 5,
-      name: 'ครีมบำรุงผิวหน้า',
-      description: 'มอยส์เจอไรเซอร์ช่วยเพิ่มความชุ่มชื้น',
-      details:
-        'ครีมบำรุงผิวหน้าสำหรับช่วยเติมความชุ่มชื้นให้ผิว เนื้อครีมนุ่ม สามารถใช้ได้เป็นประจำทั้งช่วงเช้าและก่อนนอน',
-      price: 450,
-      icon: '🫧',
-      tag: '',
-      category: 'ใบหน้า',
-    },
-    {
-      id: 6,
-      name: 'กันแดดสำหรับใบหน้า',
-      description: 'ช่วยปกป้องผิวหน้าจากแสงแดด',
-      details:
-        'ผลิตภัณฑ์กันแดดสำหรับใบหน้า เนื้อบางเบา เกลี่ยง่าย เหมาะสำหรับใช้เป็นขั้นตอนสุดท้ายของการบำรุงผิวก่อนแต่งหน้า',
-      price: 390,
-      icon: '☀️',
-      tag: 'ขายดี',
-      category: 'ใบหน้า',
-    },
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: "",
+  });
 
-    {
-      id: 7,
-      name: 'โลชั่นบำรุงผิวกาย',
-      description: 'โลชั่นช่วยเพิ่มความชุ่มชื้นให้ผิวกาย',
-      details:
-        'โลชั่นบำรุงผิวกาย เนื้อสัมผัสนุ่ม ช่วยเพิ่มความชุ่มชื้นและดูแลผิวให้รู้สึกนุ่ม เหมาะสำหรับใช้หลังอาบน้ำ',
-      price: 290,
-      icon: '🧴',
-      tag: 'ขายดี',
-      category: 'ผิวกาย',
-    },
-    {
-      id: 8,
-      name: 'ครีมอาบน้ำ',
-      description: 'ทำความสะอาดผิว พร้อมกลิ่นหอมสดชื่น',
-      details:
-        'ครีมอาบน้ำสำหรับทำความสะอาดผิวกาย ให้ความรู้สึกสดชื่นหลังอาบน้ำ พร้อมกลิ่นหอมอ่อน ๆ',
-      price: 199,
-      icon: '🧼',
-      tag: '',
-      category: 'ผิวกาย',
-    },
-    {
-      id: 9,
-      name: 'สครับผิวกาย',
-      description: 'ช่วยผลัดเซลล์ผิวและทำให้ผิวรู้สึกเรียบเนียน',
-      details:
-        'สครับสำหรับผิวกายที่ช่วยทำความสะอาดและผลัดเซลล์ผิวอย่างอ่อนโยน เหมาะสำหรับใช้ในการดูแลผิวเป็นประจำ',
-      price: 250,
-      icon: '✨',
-      tag: 'แนะนำ',
-      category: 'ผิวกาย',
-    },
-    {
-      id: 10,
-      name: 'ครีมทามือ',
-      description: 'ช่วยเพิ่มความชุ่มชื้นให้มือ',
-      details:
-        'ครีมบำรุงมือขนาดพกพา เนื้อสัมผัสนุ่ม ช่วยดูแลผิวบริเวณมือให้รู้สึกชุ่มชื้นและไม่แห้งตึง',
-      price: 159,
-      icon: '🤍',
-      tag: 'มาใหม่',
-      category: 'ผิวกาย',
-    },
-    {
-      id: 11,
-      name: 'กันแดดสำหรับผิวกาย',
-      description: 'ผลิตภัณฑ์ปกป้องผิวกายจากแสงแดด',
-      details:
-        'กันแดดสำหรับผิวกาย เนื้อเกลี่ยง่าย เหมาะสำหรับใช้ก่อนออกไปทำกิจกรรมกลางแจ้ง',
-      price: 420,
-      icon: '🌞',
-      tag: 'ขายดี',
-      category: 'ผิวกาย',
-    },
-    {
-      id: 12,
-      name: 'บอดี้ออยล์',
-      description: 'ออยล์บำรุงผิว เพิ่มความชุ่มชื้น',
-      details:
-        'บอดี้ออยล์สำหรับบำรุงผิวกาย ช่วยเพิ่มความชุ่มชื้นและทำให้ผิวดูมีความเปล่งปลั่ง สามารถใช้หลังอาบน้ำได้',
-      price: 350,
-      icon: '💧',
-      tag: '',
-      category: 'ผิวกาย',
-    },
+  const [registerData, setRegisterData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-    {
-      id: 13,
-      name: 'แชมพูบำรุงเส้นผม',
-      description: 'ทำความสะอาดและดูแลเส้นผม',
-      details:
-        'แชมพูสำหรับทำความสะอาดเส้นผมและหนังศีรษะ พร้อมช่วยดูแลให้เส้นผมรู้สึกสะอาดและนุ่มขึ้น',
-      price: 289,
-      icon: '🧴',
-      tag: 'ขายดี',
-      category: 'ผม',
-    },
-    {
-      id: 14,
-      name: 'ครีมนวดผม',
-      description: 'ช่วยให้เส้นผมนุ่มและจัดทรงง่าย',
-      details:
-        'ครีมนวดผมสำหรับใช้หลังสระ ช่วยให้เส้นผมรู้สึกนุ่มและหวีง่ายขึ้น เหมาะสำหรับการดูแลเส้นผมเป็นประจำ',
-      price: 269,
-      icon: '🫧',
-      tag: '',
-      category: 'ผม',
-    },
-    {
-      id: 15,
-      name: 'ทรีตเมนต์บำรุงผม',
-      description: 'ทรีตเมนต์ดูแลเส้นผมอย่างล้ำลึก',
-      details:
-        'ผลิตภัณฑ์ทรีตเมนต์สำหรับบำรุงเส้นผม เหมาะสำหรับใช้เสริมการดูแลเส้นผมให้รู้สึกนุ่มและจัดทรงง่าย',
-      price: 390,
-      icon: '✨',
-      tag: 'แนะนำ',
-      category: 'ผม',
-    },
-    {
-      id: 16,
-      name: 'เซรั่มบำรุงเส้นผม',
-      description: 'ช่วยดูแลเส้นผมให้ดูเรียบลื่น',
-      details:
-        'เซรั่มสำหรับบำรุงเส้นผม สามารถใช้หลังสระหรือก่อนจัดแต่งทรงผม ช่วยให้เส้นผมดูเรียบลื่น',
-      price: 320,
-      icon: '💧',
-      tag: 'มาใหม่',
-      category: 'ผม',
-    },
-    {
-      id: 17,
-      name: 'สเปรย์บำรุงผม',
-      description: 'สเปรย์ดูแลเส้นผม ใช้งานสะดวก',
-      details:
-        'ผลิตภัณฑ์บำรุงเส้นผมในรูปแบบสเปรย์ ใช้งานง่าย สามารถฉีดลงบนเส้นผมก่อนจัดแต่งทรง',
-      price: 249,
-      icon: '🌸',
-      tag: '',
-      category: 'ผม',
-    },
-    {
-      id: 18,
-      name: 'มาสก์บำรุงเส้นผม',
-      description: 'ช่วยบำรุงเส้นผมให้รู้สึกนุ่ม',
-      details:
-        'มาสก์สำหรับการบำรุงเส้นผม เหมาะสำหรับใช้เป็นครั้งคราวเพื่อเพิ่มการดูแลเส้นผมจากการสระปกติ',
-      price: 450,
-      icon: '💆‍♀️',
-      tag: 'ขายดี',
-      category: 'ผม',
-    },
-  ]
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const categoryMatch =
+        selectedCategory === "สินค้าทั้งหมด" ||
+        product.category === selectedCategory;
 
-  const filteredProducts = products.filter((product) => {
-    const categoryMatch =
-      selectedCategory === 'ทั้งหมด' ||
-      product.category === selectedCategory
+      const text = search.toLowerCase();
 
-    const searchMatch =
-      product.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchText.toLowerCase())
+      const searchMatch =
+        product.name.toLowerCase().includes(text) ||
+        product.thaiName.toLowerCase().includes(text) ||
+        product.category.toLowerCase().includes(text);
 
-    return categoryMatch && searchMatch
-  })
+      return categoryMatch && searchMatch;
+    });
+  }, [selectedCategory, search]);
 
-  const categoryTitle =
-    selectedCategory === 'ทั้งหมด'
-      ? 'สินค้าทั้งหมด'
-      : selectedCategory === 'ใบหน้า'
-      ? 'ผลิตภัณฑ์สำหรับใบหน้า'
-      : selectedCategory === 'ผิวกาย'
-      ? 'ผลิตภัณฑ์สำหรับผิวกาย'
-      : 'ผลิตภัณฑ์สำหรับผม'
+  const cartCount = cart.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 
-  const scrollToProducts = () => {
-    productsSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
-  }
-
-  const openProductDetail = (product) => {
-    setSelectedProduct(product)
-  }
-
-  const closeProductDetail = () => {
-    setSelectedProduct(null)
-  }
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
   const addToCart = (product) => {
     setCart((currentCart) => {
-      const existingProduct = currentCart.find(
+      const found = currentCart.find(
         (item) => item.id === product.id
-      )
+      );
 
-      if (existingProduct) {
+      if (found) {
         return currentCart.map((item) =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+              }
             : item
-        )
+        );
       }
 
-      return [...currentCart, { ...product, quantity: 1 }]
-    })
-  }
+      return [
+        ...currentCart,
+        {
+          ...product,
+          quantity: 1,
+        },
+      ];
+    });
+
+    setSelectedProduct(null);
+    setShowCart(true);
+  };
 
   const increaseQuantity = (id) => {
     setCart((currentCart) =>
       currentCart.map((item) =>
         item.id === id
-          ? { ...item, quantity: item.quantity + 1 }
+          ? {
+              ...item,
+              quantity: item.quantity + 1,
+            }
           : item
       )
-    )
-  }
+    );
+  };
 
   const decreaseQuantity = (id) => {
     setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
-          : item
-      )
-    )
-  }
+      currentCart
+        .map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: item.quantity - 1,
+              }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
 
   const removeFromCart = (id) => {
     setCart((currentCart) =>
       currentCart.filter((item) => item.id !== id)
-    )
-  }
+    );
+  };
 
-  const cartCount = cart.reduce(
-    (total, item) => total + item.quantity,
-    0
-  )
+  const openLogin = () => {
+    setShowCart(false);
+    setShowRegister(false);
+    setShowLogin(true);
+  };
 
-  const cartTotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  )
+  const openRegister = () => {
+    setShowLogin(false);
+    setShowRegister(true);
+  };
 
-  const handleLogin = (event) => {
-    event.preventDefault()
-
-    if (!loginEmail || !loginPassword) {
-      alert('กรุณากรอกอีเมลและรหัสผ่าน')
-      return
-    }
-
-    setCurrentUser({
-      name: 'สมาชิก AE’S STORE',
-      email: loginEmail,
-    })
-
-    setLoginEmail('')
-    setLoginPassword('')
-    setLoginOpen(false)
-
-    alert('เข้าสู่ระบบสำเร็จ')
-  }
-
-  const handleRegister = (event) => {
-    event.preventDefault()
+  const handleRegister = async (event) => {
+    event.preventDefault();
 
     if (
-      !registerName ||
-      !registerEmail ||
-      !registerPassword ||
-      !registerConfirmPassword
+      registerData.password !==
+      registerData.confirmPassword
     ) {
-      alert('กรุณากรอกข้อมูลให้ครบ')
-      return
+      alert("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+      return;
     }
 
-    if (registerPassword !== registerConfirmPassword) {
-      alert('รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน')
-      return
+    if (registerData.password.length < 6) {
+      alert("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
     }
 
-    alert(
-      'สมัครสมาชิกสำเร็จในระบบจำลอง ขั้นตอนต่อไปสามารถเชื่อม Supabase ได้'
-    )
+    const { data, error } =
+      await supabase.auth.signUp({
+        email: registerData.email,
+        password: registerData.password,
+        options: {
+          data: {
+            full_name: registerData.fullName,
+            phone: registerData.phone,
+          },
+        },
+      });
 
-    setRegisterName('')
-    setRegisterEmail('')
-    setRegisterPassword('')
-    setRegisterConfirmPassword('')
+    if (error) {
+      alert(
+        "สมัครสมาชิกไม่สำเร็จ: " +
+          error.message
+      );
+      return;
+    }
 
-    setRegisterOpen(false)
-    setLoginOpen(true)
-  }
+    alert("สมัครสมาชิกสำเร็จ");
 
-  const handleLogout = () => {
-    setCurrentUser(null)
-  }
+    setUser(data.user);
 
-  const openCheckout = () => {
+    setRegisterData({
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+    });
+
+    setShowRegister(false);
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
+      });
+
+    if (error) {
+      alert(
+        "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน"
+      );
+      return;
+    }
+
+    setUser(data.user);
+
+    setLoginData({
+      email: "",
+      password: "",
+    });
+
+    setShowLogin(false);
+
+    alert("เข้าสู่ระบบสำเร็จ");
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+
+    setUser(null);
+
+    alert("ออกจากระบบเรียบร้อย");
+  };
+
+  const startCheckout = () => {
     if (cart.length === 0) {
-      alert('ยังไม่มีสินค้าในตะกร้า')
-      return
+      return;
     }
 
-    setCartOpen(false)
-    setCheckoutOpen(true)
-  }
+    setShowCart(false);
+    setShowCheckout(true);
+  };
 
-  const confirmOrder = () => {
-    if (!shippingName || !shippingPhone || !shippingAddress) {
-      alert('กรุณากรอกข้อมูลการจัดส่งให้ครบ')
-      return
-    }
+  const finishOrder = (event) => {
+    event.preventDefault();
 
-    const orderNumber =
-      'AES' + Date.now().toString().slice(-8)
-
-    setLastOrder({
-      orderNumber,
-      total: cartTotal,
-      paymentMethod,
-    })
-
-    setCheckoutOpen(false)
-    setOrderSuccess(true)
-  }
-
-  const finishOrder = () => {
-    setOrderSuccess(false)
-    setCart([])
-    setLastOrder(null)
-
-    setShippingName('')
-    setShippingPhone('')
-    setShippingAddress('')
-  }
+    setShowCheckout(false);
+    setOrderSuccess(true);
+    setCart([]);
+  };
 
   return (
-    <div className="store">
+    <div className="app">
       <header className="header">
-        <div className="logo">
-          <h1>AE’S STORE</h1>
-          <span>BEAUTY & COSMETICS</span>
+        <div className="header-inner">
+          <div className="brand">
+            <h1>AE’S STORE</h1>
+            <p>BEAUTY & COSMETICS</p>
+          </div>
+
+          <div className="header-actions">
+            {user ? (
+              <>
+                <button className="top-button">
+                  👤{" "}
+                  {user.user_metadata?.full_name ||
+                    "สมาชิก"}
+                </button>
+
+                <button
+                  className="top-button"
+                  onClick={handleLogout}
+                >
+                  ออกจากระบบ
+                </button>
+              </>
+            ) : (
+              <button
+                className="top-button"
+                onClick={openLogin}
+              >
+                👤 เข้าสู่ระบบ
+              </button>
+            )}
+
+            <button
+              className="top-button"
+              onClick={() => setShowCart(true)}
+            >
+              🛒 ตะกร้า ({cartCount})
+            </button>
+          </div>
         </div>
 
-        <div className="search">
+        <div className="search-wrapper">
           <input
             type="text"
             placeholder="ค้นหาสินค้า..."
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
           />
 
-          <button>🔍</button>
-        </div>
-
-        <div className="header-actions">
-          {currentUser ? (
-            <>
-              <span className="member-name">
-                👤 {currentUser.name}
-              </span>
-
-              <button
-                className="text-button"
-                onClick={handleLogout}
-              >
-                ออกจากระบบ
-              </button>
-            </>
-          ) : (
-            <button
-              className="text-button"
-              onClick={() => setLoginOpen(true)}
-            >
-              👤 เข้าสู่ระบบ
-            </button>
-          )}
-
-          <button
-            className="text-button"
-            onClick={() => setCartOpen(true)}
-          >
-            🛒 ตะกร้า ({cartCount})
+          <button className="search-button">
+            🔍
           </button>
         </div>
       </header>
 
-      <div className="main">
-        <aside className="sidebar">
-          <h3>หมวดหมู่สินค้า</h3>
+      <main>
+        <section className="hero">
+          <div className="hero-content">
+            <p className="hero-small">
+              WELCOME TO AE’S STORE
+            </p>
 
-          <button
-            className={
-              selectedCategory === 'ทั้งหมด'
-                ? 'category active'
-                : 'category'
-            }
-            onClick={() => setSelectedCategory('ทั้งหมด')}
-          >
-            🛍️ สินค้าทั้งหมด
-          </button>
+            <h2>
+              เติมความมั่นใจ
+              <br />
+              ให้ทุกวันของคุณ
+            </h2>
 
-          <button
-            className={
-              selectedCategory === 'ใบหน้า'
-                ? 'category active'
-                : 'category'
-            }
-            onClick={() => setSelectedCategory('ใบหน้า')}
-          >
-            🌸 ผลิตภัณฑ์สำหรับใบหน้า
-          </button>
+            <p className="hero-description">
+              เลือกซื้อผลิตภัณฑ์เครื่องสำอาง
+              ผลิตภัณฑ์บำรุงผิว
+              และผลิตภัณฑ์ดูแลเส้นผมที่คุณชื่นชอบ
+            </p>
 
-          <button
-            className={
-              selectedCategory === 'ผิวกาย'
-                ? 'category active'
-                : 'category'
-            }
-            onClick={() => setSelectedCategory('ผิวกาย')}
-          >
-            🧴 ผลิตภัณฑ์สำหรับผิวกาย
-          </button>
+            <button
+              className="gold-button"
+              onClick={() =>
+                document
+                  .getElementById("products")
+                  ?.scrollIntoView({
+                    behavior: "smooth",
+                  })
+              }
+            >
+              เลือกซื้อสินค้า
+            </button>
+          </div>
 
-          <button
-            className={
-              selectedCategory === 'ผม'
-                ? 'category active'
-                : 'category'
-            }
-            onClick={() => setSelectedCategory('ผม')}
-          >
-            ✨ ผลิตภัณฑ์สำหรับผม
-          </button>
-        </aside>
+          <div className="hero-card">
+            <div className="hero-circle">
+              AE
+            </div>
 
-        <main className="content">
-          <section className="banner">
-            <div className="banner-text">
-              <span>AE'S STORE</span>
+            <p>BEAUTY FOR EVERY DAY</p>
+          </div>
+        </section>
 
-              <h2>
-                สวยทุกวัน
-                <br />
-                ในแบบของคุณ
-              </h2>
+        <section className="category-section">
+          <div className="section-title">
+            <p>SHOP BY CATEGORY</p>
+            <h2>หมวดหมู่สินค้า</h2>
+          </div>
 
-              <p>
-                รวมผลิตภัณฑ์ความงามสำหรับใบหน้า ผิวกาย
-                และเส้นผม
-              </p>
-
+          <div className="category-grid">
+            {categories.map((category) => (
               <button
-                className="gold-button"
-                onClick={scrollToProducts}
+                key={category}
+                className={
+                  selectedCategory === category
+                    ? "category-card active"
+                    : "category-card"
+                }
+                onClick={() =>
+                  setSelectedCategory(category)
+                }
               >
-                เลือกซื้อสินค้า →
+                <span>
+                  {category ===
+                  "สินค้าทั้งหมด"
+                    ? "🛍️"
+                    : category ===
+                      "เครื่องสำอาง"
+                    ? "💄"
+                    : category ===
+                      "บำรุงผิวหน้า"
+                    ? "✨"
+                    : category ===
+                      "บำรุงผิวกาย"
+                    ? "🧴"
+                    : "💆"}
+                </span>
+
+                {category}
               </button>
-            </div>
+            ))}
+          </div>
+        </section>
 
-            <div className="banner-icon">💄</div>
-          </section>
+        <section
+          className="products-section"
+          id="products"
+        >
+          <div className="section-title">
+            <p>OUR PRODUCTS</p>
+            <h2>{selectedCategory}</h2>
+          </div>
 
-          <section
-            className="products-section"
-            ref={productsSectionRef}
-          >
-            <div className="section-heading">
-              <div>
-                <span>AE'S COLLECTION</span>
-                <h2>{categoryTitle}</h2>
-              </div>
-
-              <p>พบ {filteredProducts.length} รายการ</p>
-            </div>
-
-            <div className="products">
-              {filteredProducts.map((product) => (
-                <div
+          <div className="product-grid">
+            {filteredProducts.map(
+              (product) => (
+                <article
                   className="product-card"
                   key={product.id}
-                  onClick={() => openProductDetail(product)}
                 >
-                  <div className="product-image">
-                    {product.tag && (
-                      <span className="tag">{product.tag}</span>
-                    )}
-
-                    <button
-                      className="heart"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                      }}
-                    >
-                      ♡
-                    </button>
-
-                    <span className="product-icon">
-                      {product.icon}
-                    </span>
-
-                    <div className="view-detail">
-                      คลิกเพื่อดูรายละเอียด
-                    </div>
+                  <div
+                    className="product-image-box"
+                    onClick={() =>
+                      setSelectedProduct(
+                        product
+                      )
+                    }
+                  >
+                    <img
+                      src={product.image}
+                      alt={
+                        product.thaiName
+                      }
+                    />
                   </div>
 
                   <div className="product-info">
@@ -597,226 +613,256 @@ function App() {
                       {product.category}
                     </span>
 
-                    <h3>{product.name}</h3>
+                    <h3>
+                      {product.thaiName}
+                    </h3>
 
-                    <p>{product.description}</p>
+                    <p className="english-name">
+                      {product.name}
+                    </p>
 
                     <div className="product-bottom">
                       <strong>
-                        ฿{product.price.toFixed(2)}
+                        ฿
+                        {product.price.toLocaleString()}
                       </strong>
 
                       <button
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          addToCart(product)
-                        }}
-                      >
-                        🛒
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </main>
-      </div>
-
-      {/* รายละเอียดสินค้า */}
-      {selectedProduct && (
-        <div
-          className="product-modal-overlay"
-          onClick={closeProductDetail}
-        >
-          <div
-            className="product-modal"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="product-modal-close"
-              onClick={closeProductDetail}
-            >
-              ×
-            </button>
-
-            <div className="product-modal-image">
-              {selectedProduct.tag && (
-                <span className="tag">
-                  {selectedProduct.tag}
-                </span>
-              )}
-
-              <span className="product-modal-icon">
-                {selectedProduct.icon}
-              </span>
-            </div>
-
-            <div className="product-modal-info">
-              <span className="modal-category">
-                {selectedProduct.category}
-              </span>
-
-              <h2>{selectedProduct.name}</h2>
-
-              <div className="modal-price">
-                ฿{selectedProduct.price.toFixed(2)}
-              </div>
-
-              <p className="modal-description">
-                {selectedProduct.details}
-              </p>
-
-              <div className="product-detail-box">
-                <h4>รายละเอียดสินค้า</h4>
-
-                <p>
-                  หมวดหมู่: {selectedProduct.category}
-                </p>
-
-                <p>
-                  สถานะสินค้า: พร้อมจำหน่าย
-                </p>
-
-                <p>
-                  จัดส่ง: ระบบจำลองสำหรับโครงงาน
-                </p>
-              </div>
-
-              <button
-                className="modal-cart-button"
-                onClick={() => {
-                  addToCart(selectedProduct)
-                  closeProductDetail()
-                  setCartOpen(true)
-                }}
-              >
-                🛒 เพิ่มลงตะกร้า
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ตะกร้าสินค้า */}
-      {cartOpen && (
-        <div
-          className="drawer-overlay"
-          onClick={() => setCartOpen(false)}
-        >
-          <div
-            className="drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-header">
-              <h2>ตะกร้าสินค้า</h2>
-
-              <button onClick={() => setCartOpen(false)}>
-                ×
-              </button>
-            </div>
-
-            {cart.length === 0 ? (
-              <div className="empty-cart">
-                <div>🛒</div>
-                <h3>ยังไม่มีสินค้าในตะกร้า</h3>
-              </div>
-            ) : (
-              <>
-                <div className="cart-items">
-                  {cart.map((item) => (
-                    <div
-                      className="cart-item"
-                      key={item.id}
-                    >
-                      <div className="cart-item-icon">
-                        {item.icon}
-                      </div>
-
-                      <div className="cart-item-info">
-                        <h4>{item.name}</h4>
-
-                        <p>
-                          ฿{item.price.toFixed(2)}
-                        </p>
-
-                        <div className="quantity">
-                          <button
-                            onClick={() =>
-                              decreaseQuantity(item.id)
-                            }
-                          >
-                            −
-                          </button>
-
-                          <span>{item.quantity}</span>
-
-                          <button
-                            onClick={() =>
-                              increaseQuantity(item.id)
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        className="remove-item"
+                        className="add-button"
                         onClick={() =>
-                          removeFromCart(item.id)
+                          addToCart(
+                            product
+                          )
                         }
                       >
-                        ×
+                        + เพิ่ม
                       </button>
                     </div>
-                  ))}
-                </div>
 
-                <div className="cart-summary">
-                  <div>
-                    <span>ยอดรวม</span>
-
-                    <strong>
-                      ฿{cartTotal.toFixed(2)}
-                    </strong>
+                    <button
+                      className="detail-button"
+                      onClick={() =>
+                        setSelectedProduct(
+                          product
+                        )
+                      }
+                    >
+                      ดูรายละเอียดสินค้า
+                    </button>
                   </div>
-
-                  <button
-                    className="gold-button full-button"
-                    onClick={openCheckout}
-                  >
-                    ดำเนินการสั่งซื้อ
-                  </button>
-                </div>
-              </>
+                </article>
+              )
             )}
           </div>
-        </div>
-      )}
+        </section>
+      </main>
 
-      {/* เข้าสู่ระบบ */}
-      {loginOpen && (
-        <div
-          className="drawer-overlay"
-          onClick={() => setLoginOpen(false)}
-        >
+      <footer className="footer">
+        <div>
+          <h2>AE’S STORE</h2>
+          <p>BEAUTY & COSMETICS</p>
+        </div>
+
+        <div>
+          <h3>หมวดหมู่สินค้า</h3>
+          <p>เครื่องสำอาง</p>
+          <p>ผลิตภัณฑ์บำรุงผิว</p>
+          <p>ผลิตภัณฑ์ดูแลเส้นผม</p>
+        </div>
+
+        <div>
+          <h3>บริการลูกค้า</h3>
+          <p>เลือกซื้อสินค้า</p>
+          <p>ตะกร้าสินค้า</p>
+          <p>การสั่งซื้อสินค้า</p>
+        </div>
+      </footer>
+
+      {showCart && (
+        <>
           <div
-            className="drawer auth-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-header">
-              <h2>เข้าสู่ระบบ</h2>
+            className="overlay"
+            onClick={() =>
+              setShowCart(false)
+            }
+          />
+
+          <aside className="side-panel">
+            <div className="panel-header">
+              <div>
+                <p>YOUR CART</p>
+                <h2>ตะกร้าสินค้า</h2>
+              </div>
 
               <button
-                onClick={() => setLoginOpen(false)}
+                onClick={() =>
+                  setShowCart(false)
+                }
               >
-                ×
+                ✕
+              </button>
+            </div>
+
+            <div className="cart-content">
+              {cart.length === 0 ? (
+                <div className="empty-cart">
+                  <div className="empty-icon">
+                    🛒
+                  </div>
+
+                  <h3>
+                    ยังไม่มีสินค้าในตะกร้า
+                  </h3>
+
+                  <button
+                    className="gold-button full"
+                    onClick={() =>
+                      setShowCart(
+                        false
+                      )
+                    }
+                  >
+                    เลือกซื้อสินค้า
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="cart-items">
+                    {cart.map(
+                      (item) => (
+                        <div
+                          className="cart-item"
+                          key={
+                            item.id
+                          }
+                        >
+                          <img
+                            src={
+                              item.image
+                            }
+                            alt={
+                              item.thaiName
+                            }
+                          />
+
+                          <div className="cart-item-info">
+                            <h4>
+                              {
+                                item.thaiName
+                              }
+                            </h4>
+
+                            <p>
+                              ฿
+                              {item.price.toLocaleString()}
+                            </p>
+
+                            <div className="quantity-row">
+                              <button
+                                onClick={() =>
+                                  decreaseQuantity(
+                                    item.id
+                                  )
+                                }
+                              >
+                                −
+                              </button>
+
+                              <span>
+                                {
+                                  item.quantity
+                                }
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  increaseQuantity(
+                                    item.id
+                                  )
+                                }
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <button
+                              className="remove-button"
+                              onClick={() =>
+                                removeFromCart(
+                                  item.id
+                                )
+                              }
+                            >
+                              ลบสินค้า
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  <div className="cart-summary">
+                    <div>
+                      <span>
+                        จำนวนสินค้า
+                      </span>
+                      <strong>
+                        {cartCount} ชิ้น
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>ยอดรวม</span>
+
+                      <strong>
+                        ฿
+                        {cartTotal.toLocaleString()}
+                      </strong>
+                    </div>
+
+                    <button
+                      className="gold-button full"
+                      onClick={
+                        startCheckout
+                      }
+                    >
+                      ดำเนินการสั่งซื้อ
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
+
+      {showLogin && (
+        <>
+          <div
+            className="overlay"
+            onClick={() =>
+              setShowLogin(false)
+            }
+          />
+
+          <aside className="side-panel">
+            <div className="panel-header">
+              <div>
+                <p>WELCOME BACK</p>
+                <h2>เข้าสู่ระบบ</h2>
+              </div>
+
+              <button
+                onClick={() =>
+                  setShowLogin(false)
+                }
+              >
+                ✕
               </button>
             </div>
 
             <form
-              className="auth-form"
+              className="form-panel"
               onSubmit={handleLogin}
             >
               <label>อีเมล</label>
@@ -824,10 +870,15 @@ function App() {
               <input
                 type="email"
                 placeholder="กรอกอีเมล"
-                value={loginEmail}
-                onChange={(event) =>
-                  setLoginEmail(event.target.value)
+                value={loginData.email}
+                onChange={(e) =>
+                  setLoginData({
+                    ...loginData,
+                    email:
+                      e.target.value,
+                  })
                 }
+                required
               />
 
               <label>รหัสผ่าน</label>
@@ -835,249 +886,405 @@ function App() {
               <input
                 type="password"
                 placeholder="กรอกรหัสผ่าน"
-                value={loginPassword}
-                onChange={(event) =>
-                  setLoginPassword(event.target.value)
+                value={
+                  loginData.password
                 }
+                onChange={(e) =>
+                  setLoginData({
+                    ...loginData,
+                    password:
+                      e.target.value,
+                  })
+                }
+                required
               />
 
               <button
+                className="gold-button full"
                 type="submit"
-                className="gold-button full-button"
               >
                 เข้าสู่ระบบ
               </button>
 
-              <p className="auth-switch">
-                ยังไม่มีบัญชี?{' '}
+              <div className="form-change">
+                ยังไม่มีบัญชี?
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setLoginOpen(false)
-                    setRegisterOpen(true)
-                  }}
+                  onClick={
+                    openRegister
+                  }
                 >
                   สมัครสมาชิก
                 </button>
-              </p>
+              </div>
             </form>
-          </div>
-        </div>
+          </aside>
+        </>
       )}
 
-      {/* สมัครสมาชิก */}
-      {registerOpen && (
-        <div
-          className="drawer-overlay"
-          onClick={() => setRegisterOpen(false)}
-        >
+      {showRegister && (
+        <>
           <div
-            className="drawer auth-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-header">
-              <h2>สมัครสมาชิก</h2>
+            className="overlay"
+            onClick={() =>
+              setShowRegister(false)
+            }
+          />
+
+          <aside className="side-panel">
+            <div className="panel-header">
+              <div>
+                <p>CREATE ACCOUNT</p>
+                <h2>
+                  สมัครสมาชิก
+                </h2>
+              </div>
 
               <button
-                onClick={() => setRegisterOpen(false)}
+                onClick={() =>
+                  setShowRegister(false)
+                }
               >
-                ×
+                ✕
               </button>
             </div>
 
             <form
-              className="auth-form"
-              onSubmit={handleRegister}
+              className="form-panel"
+              onSubmit={
+                handleRegister
+              }
             >
-              <label>ชื่อ</label>
+              <label>
+                ชื่อ - นามสกุล
+              </label>
 
               <input
                 type="text"
-                value={registerName}
-                onChange={(event) =>
-                  setRegisterName(event.target.value)
+                placeholder="กรอกชื่อ - นามสกุล"
+                value={
+                  registerData.fullName
                 }
+                onChange={(e) =>
+                  setRegisterData({
+                    ...registerData,
+                    fullName:
+                      e.target.value,
+                  })
+                }
+                required
               />
 
               <label>อีเมล</label>
 
               <input
                 type="email"
-                value={registerEmail}
-                onChange={(event) =>
-                  setRegisterEmail(event.target.value)
+                placeholder="กรอกอีเมล"
+                value={
+                  registerData.email
                 }
+                onChange={(e) =>
+                  setRegisterData({
+                    ...registerData,
+                    email:
+                      e.target.value,
+                  })
+                }
+                required
+              />
+
+              <label>
+                เบอร์โทรศัพท์
+              </label>
+
+              <input
+                type="tel"
+                placeholder="กรอกเบอร์โทรศัพท์"
+                value={
+                  registerData.phone
+                }
+                onChange={(e) =>
+                  setRegisterData({
+                    ...registerData,
+                    phone:
+                      e.target.value,
+                  })
+                }
+                required
               />
 
               <label>รหัสผ่าน</label>
 
               <input
                 type="password"
-                value={registerPassword}
-                onChange={(event) =>
-                  setRegisterPassword(event.target.value)
+                placeholder="กรอกรหัสผ่าน"
+                value={
+                  registerData.password
                 }
+                onChange={(e) =>
+                  setRegisterData({
+                    ...registerData,
+                    password:
+                      e.target.value,
+                  })
+                }
+                required
               />
 
-              <label>ยืนยันรหัสผ่าน</label>
+              <label>
+                ยืนยันรหัสผ่าน
+              </label>
 
               <input
                 type="password"
-                value={registerConfirmPassword}
-                onChange={(event) =>
-                  setRegisterConfirmPassword(
-                    event.target.value
-                  )
+                placeholder="กรอกรหัสผ่านอีกครั้ง"
+                value={
+                  registerData.confirmPassword
                 }
+                onChange={(e) =>
+                  setRegisterData({
+                    ...registerData,
+                    confirmPassword:
+                      e.target.value,
+                  })
+                }
+                required
               />
 
               <button
+                className="gold-button full"
                 type="submit"
-                className="gold-button full-button"
               >
                 สมัครสมาชิก
               </button>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* ชำระเงิน */}
-      {checkoutOpen && (
-        <div className="checkout-overlay">
-          <div className="checkout-modal">
-            <button
-              className="checkout-close"
-              onClick={() => setCheckoutOpen(false)}
-            >
-              ×
-            </button>
-
-            <h2>ยืนยันการสั่งซื้อ</h2>
-
-            <div className="checkout-grid">
-              <div className="checkout-form">
-                <label>ชื่อผู้รับ</label>
-
-                <input
-                  value={shippingName}
-                  onChange={(event) =>
-                    setShippingName(event.target.value)
-                  }
-                />
-
-                <label>เบอร์โทรศัพท์</label>
-
-                <input
-                  value={shippingPhone}
-                  onChange={(event) =>
-                    setShippingPhone(event.target.value)
-                  }
-                />
-
-                <label>ที่อยู่จัดส่ง</label>
-
-                <textarea
-                  value={shippingAddress}
-                  onChange={(event) =>
-                    setShippingAddress(
-                      event.target.value
-                    )
-                  }
-                />
-
-                <label>วิธีชำระเงิน</label>
-
-                <select
-                  value={paymentMethod}
-                  onChange={(event) =>
-                    setPaymentMethod(event.target.value)
-                  }
-                >
-                  <option>โอนผ่านธนาคาร</option>
-                  <option>ชำระเงินปลายทาง</option>
-                </select>
-              </div>
-
-              <div className="checkout-summary">
-                <h3>สรุปคำสั่งซื้อ</h3>
-
-                {cart.map((item) => (
-                  <div
-                    className="checkout-item"
-                    key={item.id}
-                  >
-                    <span>
-                      {item.name} × {item.quantity}
-                    </span>
-
-                    <strong>
-                      ฿
-                      {(
-                        item.price * item.quantity
-                      ).toFixed(2)}
-                    </strong>
-                  </div>
-                ))}
-
-                <div className="checkout-total">
-                  <span>ยอดรวม</span>
-
-                  <strong>
-                    ฿{cartTotal.toFixed(2)}
-                  </strong>
-                </div>
+              <div className="form-change">
+                มีบัญชีอยู่แล้ว?
 
                 <button
-                  className="gold-button full-button"
-                  onClick={confirmOrder}
+                  type="button"
+                  onClick={() => {
+                    setShowRegister(
+                      false
+                    );
+                    setShowLogin(true);
+                  }}
                 >
-                  ยืนยันการสั่งซื้อ
+                  เข้าสู่ระบบ
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+            </form>
+          </aside>
+        </>
       )}
 
-      {/* สั่งซื้อสำเร็จ */}
-      {orderSuccess && lastOrder && (
-        <div className="checkout-overlay">
+      {selectedProduct && (
+        <>
+          <div
+            className="modal-overlay"
+            onClick={() =>
+              setSelectedProduct(null)
+            }
+          />
+
+          <div className="product-modal">
+            <button
+              className="modal-close"
+              onClick={() =>
+                setSelectedProduct(
+                  null
+                )
+              }
+            >
+              ✕
+            </button>
+
+            <div className="modal-image">
+              <img
+                src={
+                  selectedProduct.image
+                }
+                alt={
+                  selectedProduct.thaiName
+                }
+              />
+            </div>
+
+            <div className="modal-content">
+              <span className="product-category">
+                {
+                  selectedProduct.category
+                }
+              </span>
+
+              <h2>
+                {
+                  selectedProduct.thaiName
+                }
+              </h2>
+
+              <p className="modal-english">
+                {selectedProduct.name}
+              </p>
+
+              <p className="modal-description">
+                {
+                  selectedProduct.description
+                }
+              </p>
+
+              <div className="modal-price">
+                ฿
+                {selectedProduct.price.toLocaleString()}
+              </div>
+
+              <button
+                className="gold-button full"
+                onClick={() =>
+                  addToCart(
+                    selectedProduct
+                  )
+                }
+              >
+                🛒 เพิ่มลงตะกร้า
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showCheckout && (
+        <>
+          <div
+            className="modal-overlay"
+            onClick={() =>
+              setShowCheckout(false)
+            }
+          />
+
+          <div className="checkout-modal">
+            <button
+              className="modal-close"
+              onClick={() =>
+                setShowCheckout(false)
+              }
+            >
+              ✕
+            </button>
+
+            <div className="checkout-heading">
+              <p>CHECKOUT</p>
+              <h2>
+                ยืนยันการสั่งซื้อ
+              </h2>
+            </div>
+
+            <form
+              className="checkout-form"
+              onSubmit={finishOrder}
+            >
+              <label>
+                ชื่อ - นามสกุล
+              </label>
+
+              <input
+                type="text"
+                required
+              />
+
+              <label>
+                เบอร์โทรศัพท์
+              </label>
+
+              <input
+                type="tel"
+                required
+              />
+
+              <label>
+                ที่อยู่สำหรับจัดส่ง
+              </label>
+
+              <textarea
+                rows="4"
+                required
+              />
+
+              <label>
+                วิธีการชำระเงิน
+              </label>
+
+              <select required>
+                <option value="">
+                  เลือกวิธีการชำระเงิน
+                </option>
+
+                <option value="transfer">
+                  โอนเงินผ่านบัญชีธนาคาร
+                </option>
+
+                <option value="cod">
+                  ชำระเงินปลายทาง
+                </option>
+              </select>
+
+              <div className="checkout-total">
+                <span>
+                  ยอดชำระทั้งหมด
+                </span>
+
+                <strong>
+                  ฿
+                  {cartTotal.toLocaleString()}
+                </strong>
+              </div>
+
+              <button
+                className="gold-button full"
+                type="submit"
+              >
+                ยืนยันการสั่งซื้อ
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
+      {orderSuccess && (
+        <>
+          <div className="modal-overlay" />
+
           <div className="success-modal">
-            <div className="success-icon">✓</div>
+            <div className="success-icon">
+              ✓
+            </div>
 
-            <h2>สั่งซื้อสำเร็จ</h2>
+            <p>ORDER SUCCESS</p>
 
-            <p>
-              ขอบคุณสำหรับการสั่งซื้อสินค้า
+            <h2>
+              สั่งซื้อสินค้าสำเร็จ
+            </h2>
+
+            <p className="success-text">
+              ระบบได้รับคำสั่งซื้อของคุณเรียบร้อยแล้ว
+              ขอบคุณที่เลือกซื้อสินค้ากับ
+              AE’S STORE
             </p>
 
-            <div className="order-number">
-              เลขที่คำสั่งซื้อ
-              <strong>
-                {lastOrder.orderNumber}
-              </strong>
-            </div>
-
-            <div className="success-total">
-              <span>ยอดรวม</span>
-
-              <strong>
-                ฿{lastOrder.total.toFixed(2)}
-              </strong>
-            </div>
-
             <button
-              className="gold-button"
-              onClick={finishOrder}
+              className="gold-button full"
+              onClick={() =>
+                setOrderSuccess(false)
+              }
             >
               กลับไปเลือกซื้อสินค้า
             </button>
           </div>
-        </div>
+        </>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
