@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import "./App.css";
 
@@ -220,6 +220,28 @@ function App() {
     password: "",
   });
 
+  useEffect(() => {
+  const loadUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    setUser(session?.user ?? null);
+  };
+
+  loadUser();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
+
   const [registerData, setRegisterData] = useState({
     fullName: "",
     email: "",
@@ -418,13 +440,22 @@ function App() {
   };
 
   const startCheckout = () => {
-    if (cart.length === 0) {
-      return;
-    }
+  if (cart.length === 0) {
+    return;
+  }
+
+  if (!user) {
+    alert("กรุณาสมัครสมาชิกหรือเข้าสู่ระบบก่อนสั่งซื้อสินค้า");
 
     setShowCart(false);
-    setShowCheckout(true);
-  };
+    setShowLogin(true);
+
+    return;
+  }
+
+  setShowCart(false);
+  setShowCheckout(true);
+};
 
   const finishOrder = (event) => {
     event.preventDefault();
