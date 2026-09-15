@@ -237,6 +237,9 @@ function App() {
   // ระบบคำสั่งซื้อ
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showMyOrders, setShowMyOrders] = useState(false);
+  const [myOrders, setMyOrders] = useState([]);
+  const [myOrdersLoading, setMyOrdersLoading] = useState(false);
   const [orderSaving, setOrderSaving] = useState(false);
   const [checkoutData, setCheckoutData] = useState({
     fullName: "",
@@ -304,6 +307,45 @@ function App() {
     }
 
     setOrders(data || []);
+  };
+
+  const loadMyOrders = async () => {
+    if (!user) return;
+
+    setMyOrdersLoading(true);
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        customer_name,
+        phone,
+        address,
+        payment_method,
+        total,
+        status,
+        created_at,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          price,
+          quantity,
+          subtotal
+        )
+      `)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    setMyOrdersLoading(false);
+
+    if (error) {
+      alert("โหลดประวัติคำสั่งซื้อไม่สำเร็จ: " + error.message);
+      return;
+    }
+
+    setMyOrders(data || []);
+    setShowMyOrders(true);
   };
 
   const loadUserRole = async (userId) => {
@@ -573,6 +615,8 @@ function App() {
     setUser(null);
     setUserRole("customer");
     setShowAdmin(false);
+    setShowMyOrders(false);
+    setMyOrders([]);
 
     alert("ออกจากระบบเรียบร้อย");
   };
@@ -1395,6 +1439,13 @@ function App() {
                     "สมาชิก"}
                 </button>
 
+                <button
+                  className="top-button"
+                  onClick={loadMyOrders}
+                >
+                  📦 คำสั่งซื้อของฉัน
+                </button>
+
                 {userRole === "admin" && (
                   <button
                     className="top-button"
@@ -1629,6 +1680,121 @@ function App() {
           <p>การสั่งซื้อสินค้า</p>
         </div>
       </footer>
+
+      {showMyOrders && (
+        <>
+          <div
+            className="overlay"
+            onClick={() => setShowMyOrders(false)}
+          />
+
+          <aside className="side-panel">
+            <div className="panel-header">
+              <div>
+                <p>MY ORDERS</p>
+                <h2>คำสั่งซื้อของฉัน</h2>
+              </div>
+
+              <button onClick={() => setShowMyOrders(false)}>✕</button>
+            </div>
+
+            <div className="cart-content">
+              {myOrdersLoading ? (
+                <div className="empty-cart">
+                  <h3>กำลังโหลดคำสั่งซื้อ...</h3>
+                </div>
+              ) : myOrders.length === 0 ? (
+                <div className="empty-cart">
+                  <div className="empty-icon">📦</div>
+                  <h3>ยังไม่มีประวัติคำสั่งซื้อ</h3>
+                  <button
+                    className="gold-button full"
+                    onClick={() => setShowMyOrders(false)}
+                  >
+                    เลือกซื้อสินค้า
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: "16px", paddingBottom: "24px" }}>
+                  {myOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      style={{
+                        border: "1px solid #333",
+                        borderRadius: "14px",
+                        padding: "16px",
+                        background: "#151515",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: "12px",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div>
+                          <strong style={{ color: "#dfbd6d", fontSize: "17px" }}>
+                            คำสั่งซื้อ #{order.id}
+                          </strong>
+                          <div style={{ color: "#888", fontSize: "12px", marginTop: "4px" }}>
+                            {new Date(order.created_at).toLocaleString("th-TH")}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            border: "1px solid #6b5a2e",
+                            borderRadius: "999px",
+                            padding: "6px 10px",
+                            color: "#dfbd6d",
+                            fontSize: "12px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div style={{ borderTop: "1px solid #2b2b2b", paddingTop: "10px" }}>
+                        {(order.order_items || []).map((item) => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: "10px",
+                              padding: "6px 0",
+                              color: "#ccc",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <span>{item.product_name} × {item.quantity}</span>
+                            <span>฿{Number(item.subtotal).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ borderTop: "1px solid #2b2b2b", marginTop: "10px", paddingTop: "12px" }}>
+                        <p style={{ margin: "0 0 6px", color: "#999", fontSize: "12px" }}>
+                          วิธีชำระเงิน: {order.payment_method === "transfer" ? "โอนเงินผ่านบัญชีธนาคาร" : "ชำระเงินปลายทาง"}
+                        </p>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <strong>ยอดรวม</strong>
+                          <strong style={{ color: "#dfbd6d", fontSize: "20px" }}>
+                            ฿{Number(order.total).toLocaleString()}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
 
       {showCart && (
         <>
